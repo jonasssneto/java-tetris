@@ -2,13 +2,17 @@
 
 # TODO
 
-- proxima peca
-- pontuacao
-    - cronometro
-    - pecas por segundo
-    - total linhas apagadas
-    - total de pecas (ver)
-- shadow da peca
-- sons
-- customização de interface
-- modo contra bot (se der tempo)
+- [x] proxima peca
+- [ ] pontuacao
+    - [ ] cronometro
+    - [ ] pecas por segundo
+    - [X] total linhas apagadas
+    - [ ] total de pecas (ver)
+- Botão para reiniciar o jogo
+- [ ] shadow da peca
+- [ ] sons
+- [ ] customização de interface
+- [ ] modo contra bot (se der tempo)
+- [ ] ao chegar no topo, o jogo deve acabar
+- [ ] Menu inicial
+- [ ] Refatorar tudo pra MVC

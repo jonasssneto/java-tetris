@@ -56,7 +56,7 @@ public class Tetris extends JFrame implements ActionListener, KeyListener {
     public void actionPerformed(ActionEvent e) {
         if (gameRunning) {
             gameBoard.update();
-            infoPanel.updateInfo(gameBoard.getScore(), gameBoard.getLevel(), gameBoard.getLines());
+            infoPanel.updateInfo(gameBoard.getScore(), gameBoard.getLevel(), gameBoard.getLines(), gameBoard.getNextPiece());
             repaint();
         }
     }
@@ -364,6 +364,11 @@ class GameBoard extends JPanel {
             }
         }
         
+        // Desenhar sombra da peça (ghost piece)
+        if (currentPiece != null) {
+            drawShadowPiece(g2d, currentPiece);
+        }
+        
         // Desenhar peça atual
         if (currentPiece != null) {
             drawPiece(g2d, currentPiece);
@@ -383,6 +388,66 @@ class GameBoard extends JPanel {
                 }
             }
         }
+    }
+    
+    private void drawShadowPiece(Graphics2D g2d, Tetromino piece) {
+        // Calcular posição final onde a peça vai cair
+        int shadowY = getShadowY(piece);
+        
+        int[][] shape = piece.getShape();
+        Color color = piece.getColor();
+        
+        for (int i = 0; i < shape.length; i++) {
+            for (int j = 0; j < shape[i].length; j++) {
+                if (shape[i][j] != 0) {
+                    int x = (piece.getX() + j) * Tetris.TILE_SIZE;
+                    int y = (shadowY + i) * Tetris.TILE_SIZE;
+                    drawShadowBlock(g2d, x, y, color);
+                }
+            }
+        }
+    }
+    
+    private int getShadowY(Tetromino piece) {
+        int shadowY = piece.getY();
+        
+        // Continuar descendo até não poder mais
+        while (canMoveToPosition(piece, piece.getX(), shadowY + 1)) {
+            shadowY++;
+        }
+        
+        return shadowY;
+    }
+    
+    private boolean canMoveToPosition(Tetromino piece, int newX, int newY) {
+        int[][] shape = piece.getShape();
+        
+        for (int i = 0; i < shape.length; i++) {
+            for (int j = 0; j < shape[i].length; j++) {
+                if (shape[i][j] != 0) {
+                    int boardX = newX + j;
+                    int boardY = newY + i;
+                    
+                    if (boardX < 0 || boardX >= Tetris.BOARD_WIDTH || 
+                        boardY >= Tetris.BOARD_HEIGHT || 
+                        (boardY >= 0 && board[boardY][boardX] != 0)) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+    
+    private void drawShadowBlock(Graphics2D g2d, int x, int y, Color color) {
+        // Desenhar apenas borda da sombra
+        g2d.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), 80));
+        g2d.setStroke(new BasicStroke(2));
+        g2d.drawRoundRect(x + 2, y + 2, Tetris.TILE_SIZE - 4, Tetris.TILE_SIZE - 4, 6, 6);
+        
+        // Preenchimento transparente
+        g2d.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), 20));
+        g2d.fillRoundRect(x + 2, y + 2, Tetris.TILE_SIZE - 4, Tetris.TILE_SIZE - 4, 6, 6);
     }
     
     private void drawBlock(Graphics2D g2d, int x, int y, Color color) {
@@ -417,6 +482,7 @@ class InfoPanel extends JPanel {
     private final Color accentColor = new Color(100, 149, 237);
     
     private int score, level, lines;
+    private Tetromino next;
     
     public InfoPanel() {
         setPreferredSize(new Dimension(Tetris.PANEL_WIDTH, Tetris.BOARD_HEIGHT * Tetris.TILE_SIZE));
@@ -424,10 +490,11 @@ class InfoPanel extends JPanel {
         setBorder(BorderFactory.createLineBorder(accentColor, 2));
     }
     
-    public void updateInfo(int score, int level, int lines) {
+    public void updateInfo(int score, int level, int lines, Tetromino next) {
         this.score = score;
         this.level = level;
         this.lines = lines;
+        this.next = next;
         repaint();
     }
     
@@ -436,22 +503,43 @@ class InfoPanel extends JPanel {
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        
-        int y = 40;
 
-        Font titleFont = FontLoader.loadFont("/font/font.ttf", 16f);
-        
-        // Texto de "Proxima Peça"
-        g2d.setColor(textColor);
+        int panelWidth = getWidth();
+        int panelHeight = getHeight();
+
+        // Espaços relativos
+        int padding = panelWidth / 35;
+        int y = padding;
+
+        // Fonte proporcional ao tamanho do painel
+        float fontSize = panelWidth / 10f;
+        Font titleFont = FontLoader.loadFont("/font/font.ttf", fontSize);
         g2d.setFont(titleFont);
-        g2d.drawString("NEXT PIECE", 20, y);
-        y += 30;
-        // Área da Próxima Peça
+        g2d.setColor(textColor);
+
+        // Texto "PRÓXIMA PEÇA"
+        g2d.drawString("PRÓXIMA PEÇA", padding, y + fontSize);
+        y += fontSize + padding;
+
+        // Área da próxima peça (quadrado proporcional)
+        int squareSize = panelWidth - 2 * padding; // usa quase toda largura do painel
         g2d.setColor(accentColor);
-        g2d.fillRect(20, y, 150, 150);
+        g2d.fillRect(padding, y, squareSize, squareSize);
         g2d.setColor(bgColor);
-        g2d.fillRect(22, y+2, 146, 146);
-        y += 170;
+        g2d.fillRect(padding + 2, y + 2, squareSize - 4, squareSize - 4);
+
+        // Desenhar próxima peça dentro do quadrado (com pequeno padding interno)
+        drawNextPiece(g2d, next, padding + 2, y + 2, squareSize - 4);
+
+        y += squareSize + padding * 4;
+        g2d.setColor(textColor);
+        float infoFontSize = panelWidth / 12f;
+        g2d.setFont(titleFont.deriveFont(infoFontSize));
+        g2d.drawString("Pontuação: " + score, padding, y);
+        y += infoFontSize + padding;
+        g2d.drawString("Nível: " + level, padding, y);
+        y += infoFontSize + padding;
+        g2d.drawString("Linhas: " + lines, padding, y);
     }
     
     private void drawSimpleNumber(Graphics2D g2d, int number, int x, int y) {
@@ -539,6 +627,55 @@ class InfoPanel extends JPanel {
                 g2d.fillRect(x+w-h, y+w-h, h, w);   // right bottom
                 g2d.fillRect(x, y+2*w-h, w, h);     // bottom
                 break;
+        }
+    }
+    
+    // Desenha a próxima peça centralizada e escalada dentro do retângulo (x,y,size,size)
+    private void drawNextPiece(Graphics2D g2d, Tetromino piece, int x, int y, int size) {
+        if (piece == null) return;
+
+        int[][] shape = piece.getShape();
+        Color color = piece.getColor();
+
+        int rows = shape.length;
+        int cols = shape[0].length;
+
+        // Calcular padding interno e tamanho do bloco
+        int innerPadding = Math.max(4, size / 12);
+        int available = size - innerPadding * 2;
+        int blockSize = Math.max(1, Math.min(available / Math.max(1, cols), available / Math.max(1, rows)));
+
+        // Centralizar
+        int pieceWidth = blockSize * cols;
+        int pieceHeight = blockSize * rows;
+        int startX = x + (size - pieceWidth) / 2;
+        int startY = y + (size - pieceHeight) / 2;
+
+        // Desenhar cada bloco com sombra, highlight e borda (versão simplificada)
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
+                if (shape[i][j] != 0) {
+                    int bx = startX + j * blockSize;
+                    int by = startY + i * blockSize;
+
+                    // Sombra
+                    g2d.setColor(new Color(0, 0, 0, 80));
+                    g2d.fillRect(bx + Math.max(1, blockSize/8), by + Math.max(1, blockSize/8), blockSize - Math.max(2, blockSize/6), blockSize - Math.max(2, blockSize/6));
+
+                    // Bloco principal
+                    g2d.setColor(color);
+                    g2d.fillRect(bx, by, blockSize - 1, blockSize - 1);
+
+                    // Highlight
+                    g2d.setColor(new Color(255, 255, 255, 80));
+                    g2d.fillRect(bx, by, blockSize - 1, Math.max(2, blockSize/4));
+
+                    // Borda
+                    g2d.setColor(color.darker());
+                    g2d.setStroke(new BasicStroke(1));
+                    g2d.drawRect(bx, by, blockSize - 1, blockSize - 1);
+                }
+            }
         }
     }
 }
