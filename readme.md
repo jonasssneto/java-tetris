@@ -9,7 +9,7 @@
     - [X] total linhas apagadas
     - [ ] total de pecas (ver)
 - Botão para reiniciar o jogo
-- [ ] shadow da peca
+- [X] shadow da peca
 - [ ] sons
 - [ ] customização de interface
 - [ ] modo contra bot (se der tempo)

@@ -56,7 +56,15 @@ public class Tetris extends JFrame implements ActionListener, KeyListener {
     public void actionPerformed(ActionEvent e) {
         if (gameRunning) {
             gameBoard.update();
-            infoPanel.updateInfo(gameBoard.getScore(), gameBoard.getLevel(), gameBoard.getLines(), gameBoard.getNextPiece());
+            infoPanel.updateInfo(
+                gameBoard.getScore(), 
+                gameBoard.getLevel(), 
+                gameBoard.getLines(), 
+                gameBoard.getNextPiece(),
+                gameBoard.getElapsedTime(),
+                gameBoard.getTotalPieces(),
+                gameBoard.getPiecesPerSecond()
+            );
             repaint();
         }
     }
@@ -186,6 +194,8 @@ class GameBoard extends JPanel {
     private int score;
     private int level;
     private int lines;
+    private long startTime;
+    private int totalPieces;
     
     public GameBoard() {
         setPreferredSize(new Dimension(Tetris.BOARD_WIDTH * Tetris.TILE_SIZE, Tetris.BOARD_HEIGHT * Tetris.TILE_SIZE));
@@ -201,6 +211,8 @@ class GameBoard extends JPanel {
         score = 0;
         level = 1;
         lines = 0;
+        totalPieces = 0;
+        startTime = System.currentTimeMillis();
         currentPiece = getRandomPiece();
         nextPiece = getRandomPiece();
     }
@@ -301,6 +313,7 @@ class GameBoard extends JPanel {
                 }
             }
         }
+        totalPieces++;
     }
     
     private void clearLines() {
@@ -473,6 +486,25 @@ class GameBoard extends JPanel {
     public int getLevel() { return level; }
     public int getLines() { return lines; }
     public Tetromino getNextPiece() { return nextPiece; }
+    
+    public String getElapsedTime() {
+        long elapsedMillis = System.currentTimeMillis() - startTime;
+        long seconds = elapsedMillis / 1000;
+        long minutes = seconds / 60;
+        seconds = seconds % 60;
+        return String.format("%02d:%02d", minutes, seconds);
+    }
+    
+    public int getTotalPieces() {
+        return totalPieces;
+    }
+    
+    public double getPiecesPerSecond() {
+        long elapsedMillis = System.currentTimeMillis() - startTime;
+        double elapsedSeconds = elapsedMillis / 1000.0;
+        if (elapsedSeconds < 1.0) return 0.0;
+        return totalPieces / elapsedSeconds;
+    }
 }
 
 // Painel de informações laterais
@@ -483,6 +515,9 @@ class InfoPanel extends JPanel {
     
     private int score, level, lines;
     private Tetromino next;
+    private String elapsedTime;
+    private int totalPieces;
+    private double piecesPerSecond;
     
     public InfoPanel() {
         setPreferredSize(new Dimension(Tetris.PANEL_WIDTH, Tetris.BOARD_HEIGHT * Tetris.TILE_SIZE));
@@ -490,11 +525,14 @@ class InfoPanel extends JPanel {
         setBorder(BorderFactory.createLineBorder(accentColor, 2));
     }
     
-    public void updateInfo(int score, int level, int lines, Tetromino next) {
+    public void updateInfo(int score, int level, int lines, Tetromino next, String elapsedTime, int totalPieces, double piecesPerSecond) {
         this.score = score;
         this.level = level;
         this.lines = lines;
         this.next = next;
+        this.elapsedTime = elapsedTime;
+        this.totalPieces = totalPieces;
+        this.piecesPerSecond = piecesPerSecond;
         repaint();
     }
     
@@ -540,6 +578,14 @@ class InfoPanel extends JPanel {
         g2d.drawString("Nível: " + level, padding, y);
         y += infoFontSize + padding;
         g2d.drawString("Linhas: " + lines, padding, y);
+        y += infoFontSize + padding * 2;
+        
+        // Novas estatísticas
+        g2d.drawString("Tempo: " + (elapsedTime != null ? elapsedTime : "00:00"), padding, y);
+        y += infoFontSize + padding;
+        g2d.drawString("Peças: " + totalPieces, padding, y);
+        y += infoFontSize + padding;
+        g2d.drawString("PPS: " + String.format("%.2f", piecesPerSecond), padding, y);
     }
     
     private void drawSimpleNumber(Graphics2D g2d, int number, int x, int y) {

@@ -40,7 +40,7 @@ out/
 # Gradle
 .gradle/
 build/
-
+/target
 # OS generated files
 .DS_Store
 Thumbs.db
