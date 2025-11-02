@@ -18,6 +18,7 @@ public class GameWindow extends JFrame {
     private final InfoPanel infoPanel;
     private Timer gameLoopTimer;
     private Timer renderTimer;
+    private JPanel overlayPanel;
 
     private volatile int currentLevel = 1;
     private volatile boolean gameOverHandled = false;
@@ -27,23 +28,53 @@ public class GameWindow extends JFrame {
 
         setTitle("TETRIS - Jogo");
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        setResizable(false);
-        setLocationRelativeTo(null);
+        setUndecorated(true); // Remove bordas para fullscreen
 
-        // Painel principal
-        JPanel mainPanel = new JPanel(new BorderLayout());
+        // Painel principal com layout para centralizar
+        JPanel mainPanel = new JPanel(new GridBagLayout());
         mainPanel.setBackground(new Color(15, 15, 25));
+
+        // Container do jogo (painel + info)
+        JPanel gameContainer = new JPanel(new BorderLayout());
+        gameContainer.setBackground(new Color(15, 15, 25));
 
         // Painel do jogo (centro)
         gamePanel = new GamePanel(controller);
-        mainPanel.add(gamePanel, BorderLayout.CENTER);
+        gameContainer.add(gamePanel, BorderLayout.CENTER);
 
         // Painel de info (direita)
         infoPanel = new InfoPanel();
-        mainPanel.add(infoPanel, BorderLayout.EAST);
+        gameContainer.add(infoPanel, BorderLayout.EAST);
 
-        add(mainPanel);
-        pack();
+        // Adicionar gameContainer centralizado no mainPanel
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.anchor = GridBagConstraints.CENTER;
+        mainPanel.add(gameContainer, gbc);
+
+        // Usar JLayeredPane para overlay
+        JLayeredPane layeredPane = new JLayeredPane();
+        layeredPane.setLayout(new OverlayLayout(layeredPane));
+
+        mainPanel.setOpaque(true);
+        layeredPane.add(mainPanel, JLayeredPane.DEFAULT_LAYER);
+
+        // Overlay invisível inicialmente
+        overlayPanel = createOverlayPanel();
+        overlayPanel.setVisible(false);
+        layeredPane.add(overlayPanel, JLayeredPane.PALETTE_LAYER);
+
+        add(layeredPane);
+
+        // Configurar fullscreen
+        GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
+        if (gd.isFullScreenSupported()) {
+            gd.setFullScreenWindow(this);
+        } else {
+            // Fallback: maximizar janela
+            setExtendedState(JFrame.MAXIMIZED_BOTH);
+        }
 
         // Key listener para input
         addKeyListener(new GameKeyListener());
@@ -55,6 +86,13 @@ public class GameWindow extends JFrame {
 
         // Render loop (EDT)
         startRenderLoop();
+    }
+
+    private JPanel createOverlayPanel() {
+        JPanel overlay = new JPanel(new GridBagLayout());
+        overlay.setBackground(new Color(0, 0, 0, 200));
+        overlay.setOpaque(false);
+        return overlay;
     }
 
     /**
@@ -93,26 +131,114 @@ public class GameWindow extends JFrame {
     }
 
     private void handleGameOver(GameState state) {
-        int result = JOptionPane.showConfirmDialog(
-                this,
-                "GAME OVER!\n\nPontuação Final: " + state.getScore() + "\nNível: " + state.getLevel(),
-                "Fim de Jogo",
-                JOptionPane.OK_CANCEL_OPTION);
+        // Pausar timers
+        if (gameLoopTimer != null)
+            gameLoopTimer.stop();
+        if (renderTimer != null)
+            renderTimer.stop();
 
-        // Salvar recorde
-        com.jonas.tetris.persistence.ScoreRepository.saveScore(state.getScore());
+        // Criar overlay customizado
+        overlayPanel.removeAll();
+        overlayPanel.setOpaque(true);
+        overlayPanel.setBackground(new Color(0, 0, 0, 220));
 
-        if (result == JOptionPane.OK_OPTION) {
-            // Novo jogo - resetar flag
+        JPanel contentPanel = new JPanel();
+        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
+        contentPanel.setOpaque(false);
+
+        // Título GAME OVER
+        JLabel titleLabel = new JLabel("GAME OVER");
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 72));
+        titleLabel.setForeground(new Color(255, 100, 100));
+        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        // Espaço
+        contentPanel.add(Box.createVerticalStrut(50));
+        contentPanel.add(titleLabel);
+        contentPanel.add(Box.createVerticalStrut(50));
+
+        // Pontuação
+        JLabel scoreLabel = new JLabel("Pontuação Final: " + state.getScore());
+        scoreLabel.setFont(new Font("Arial", Font.BOLD, 36));
+        scoreLabel.setForeground(Color.WHITE);
+        scoreLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        contentPanel.add(scoreLabel);
+        contentPanel.add(Box.createVerticalStrut(20));
+
+        // Nível
+        JLabel levelLabel = new JLabel("Nível: " + state.getLevel());
+        levelLabel.setFont(new Font("Arial", Font.PLAIN, 28));
+        levelLabel.setForeground(new Color(220, 220, 220));
+        levelLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        contentPanel.add(levelLabel);
+        contentPanel.add(Box.createVerticalStrut(20));
+
+        // Linhas
+        JLabel linesLabel = new JLabel("Linhas: " + state.getTotalLines());
+        linesLabel.setFont(new Font("Arial", Font.PLAIN, 28));
+        linesLabel.setForeground(new Color(220, 220, 220));
+        linesLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        contentPanel.add(linesLabel);
+        contentPanel.add(Box.createVerticalStrut(60));
+
+        // Botões
+        JButton retryButton = createOverlayButton("Jogar Novamente");
+        retryButton.addActionListener(e -> {
             gameOverHandled = false;
+            overlayPanel.setVisible(false);
             controller.startGame();
-        } else {
-            // Voltar ao menu
+            if (gameLoopTimer != null)
+                gameLoopTimer.start();
+            if (renderTimer != null)
+                renderTimer.start();
+            requestFocus();
+        });
+
+        JButton menuButton = createOverlayButton("Voltar ao Menu");
+        menuButton.addActionListener(e -> {
             stopTimers();
             setVisible(false);
             dispose();
             SwingUtilities.invokeLater(() -> new MainMenu());
-        }
+        });
+
+        contentPanel.add(retryButton);
+        contentPanel.add(Box.createVerticalStrut(20));
+        contentPanel.add(menuButton);
+
+        overlayPanel.add(contentPanel);
+        overlayPanel.setVisible(true);
+        overlayPanel.revalidate();
+        overlayPanel.repaint();
+
+        // Salvar recorde
+        com.jonas.tetris.persistence.ScoreRepository.saveScore(state.getScore());
+    }
+
+    private JButton createOverlayButton(String text) {
+        JButton button = new JButton(text);
+        button.setMaximumSize(new Dimension(300, 60));
+        button.setAlignmentX(Component.CENTER_ALIGNMENT);
+        button.setFont(new Font("Arial", Font.BOLD, 24));
+        button.setBackground(new Color(100, 149, 237));
+        button.setForeground(Color.WHITE);
+        button.setBorderPainted(false);
+        button.setFocusPainted(false);
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent e) {
+                button.setBackground(new Color(120, 170, 255));
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent e) {
+                button.setBackground(new Color(100, 149, 237));
+            }
+        });
+
+        return button;
     }
 
     private class GameKeyListener extends KeyAdapter {
@@ -139,6 +265,9 @@ public class GameWindow extends JFrame {
                     break;
                 case KeyEvent.VK_P:
                     controller.pause();
+                    break;
+                case KeyEvent.VK_F11:
+                    toggleFullscreen();
                     break;
                 case KeyEvent.VK_ESCAPE:
                     handleEscape();
@@ -167,12 +296,41 @@ public class GameWindow extends JFrame {
         }
     }
 
+    private void toggleFullscreen() {
+        GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
+
+        if (gd.getFullScreenWindow() == this) {
+            // Sair do fullscreen
+            gd.setFullScreenWindow(null);
+            dispose();
+            setUndecorated(false);
+            setExtendedState(JFrame.NORMAL);
+            setVisible(true);
+            pack();
+            setLocationRelativeTo(null);
+        } else {
+            // Entrar em fullscreen
+            dispose();
+            setUndecorated(true);
+            setVisible(true);
+            gd.setFullScreenWindow(this);
+        }
+
+        requestFocus();
+    }
+
     private void stopTimers() {
         if (gameLoopTimer != null) {
             gameLoopTimer.stop();
         }
         if (renderTimer != null) {
             renderTimer.stop();
+        }
+
+        // Sair do fullscreen
+        GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
+        if (gd.getFullScreenWindow() == this) {
+            gd.setFullScreenWindow(null);
         }
     }
 }

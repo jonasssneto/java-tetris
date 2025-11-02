@@ -12,45 +12,45 @@ import java.awt.event.*;
  * Exibe opções para Jogar, Instruções, Opções e Sair.
  */
 public class MainMenu extends JFrame {
-    private static final int WIDTH = 400;
-    private static final int HEIGHT = 600;
-
     private GameWindow gameWindow;
     private int highScore;
 
     public MainMenu() {
         setTitle("TETRIS - Menu Principal");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(WIDTH, HEIGHT);
-        setResizable(false);
-        setLocationRelativeTo(null);
+        setUndecorated(true); // Sem bordas para fullscreen
 
         // Carregar recorde
         highScore = ScoreRepository.getHighScore();
 
-        // Painel principal
-        JPanel mainPanel = new JPanel();
-        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+        // Painel principal com layout centralizado
+        JPanel mainPanel = new JPanel(new GridBagLayout());
         mainPanel.setBackground(new Color(15, 15, 25));
+
+        // Container para conteúdo centralizado
+        JPanel contentPanel = new JPanel();
+        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
+        contentPanel.setBackground(new Color(15, 15, 25));
+        contentPanel.setOpaque(false);
 
         // Titulo
         JLabel titleLabel = new JLabel("TETRIS");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 48));
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 72));
         titleLabel.setForeground(new Color(100, 149, 237));
         titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         // Espaçador
-        mainPanel.add(Box.createVerticalStrut(40));
-        mainPanel.add(titleLabel);
-        mainPanel.add(Box.createVerticalStrut(30));
+        contentPanel.add(Box.createVerticalStrut(20));
+        contentPanel.add(titleLabel);
+        contentPanel.add(Box.createVerticalStrut(30));
 
         // Recorde
         JLabel scoreLabel = new JLabel("Recorde: " + highScore);
-        scoreLabel.setFont(new Font("Arial", Font.PLAIN, 18));
+        scoreLabel.setFont(new Font("Arial", Font.PLAIN, 24));
         scoreLabel.setForeground(new Color(220, 220, 220));
         scoreLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        mainPanel.add(scoreLabel);
-        mainPanel.add(Box.createVerticalStrut(30));
+        contentPanel.add(scoreLabel);
+        contentPanel.add(Box.createVerticalStrut(50));
 
         // Botões
         JButton playButton = createButton("Jogar");
@@ -65,17 +65,18 @@ public class MainMenu extends JFrame {
         JButton exitButton = createButton("Sair");
         exitButton.addActionListener(e -> System.exit(0));
 
-        mainPanel.add(playButton);
-        mainPanel.add(Box.createVerticalStrut(15));
-        mainPanel.add(instructionsButton);
-        mainPanel.add(Box.createVerticalStrut(15));
-        mainPanel.add(optionsButton);
-        mainPanel.add(Box.createVerticalStrut(15));
-        mainPanel.add(exitButton);
+        contentPanel.add(playButton);
+        contentPanel.add(Box.createVerticalStrut(20));
+        contentPanel.add(instructionsButton);
+        contentPanel.add(Box.createVerticalStrut(20));
+        contentPanel.add(optionsButton);
+        contentPanel.add(Box.createVerticalStrut(20));
+        contentPanel.add(exitButton);
 
-        mainPanel.add(Box.createVerticalGlue());
+        // Adicionar contentPanel ao mainPanel (centralizado)
+        mainPanel.add(contentPanel);
 
-        // Adicionar key listener
+        // Adicionar key listener ao mainPanel
         mainPanel.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
@@ -89,14 +90,24 @@ public class MainMenu extends JFrame {
         mainPanel.setFocusable(true);
 
         add(mainPanel);
+
+        // Configurar fullscreen
+        GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
+        if (gd.isFullScreenSupported()) {
+            gd.setFullScreenWindow(this);
+        } else {
+            setExtendedState(JFrame.MAXIMIZED_BOTH);
+        }
+
         setVisible(true);
+        mainPanel.requestFocus();
     }
 
     private JButton createButton(String text) {
         JButton button = new JButton(text);
-        button.setMaximumSize(new Dimension(200, 40));
+        button.setMaximumSize(new Dimension(250, 50));
         button.setAlignmentX(Component.CENTER_ALIGNMENT);
-        button.setFont(new Font("Arial", Font.PLAIN, 16));
+        button.setFont(new Font("Arial", Font.BOLD, 20));
         button.setBackground(new Color(100, 149, 237));
         button.setForeground(Color.WHITE);
         button.setBorderPainted(false);
@@ -119,12 +130,19 @@ public class MainMenu extends JFrame {
     }
 
     private void startGame() {
+        // Sair do fullscreen do menu
+        GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
+        if (gd.getFullScreenWindow() == this) {
+            gd.setFullScreenWindow(null);
+        }
+
         GameController controller = new GameController();
         controller.startGame();
 
         gameWindow = new GameWindow(controller);
         gameWindow.setVisible(true);
         setVisible(false);
+        dispose();
     }
 
     private void showInstructions() {
