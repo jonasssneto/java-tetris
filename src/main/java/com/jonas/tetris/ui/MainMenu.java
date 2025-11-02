@@ -11,32 +11,37 @@ import java.awt.event.*;
  * Tela inicial (Main Menu) do Tetris.
  * Exibe opções para Jogar, Instruções, Opções e Sair.
  */
-public class MainMenu extends JFrame {
+public class MainMenu extends JFrame implements ThemeManager.ThemeChangeListener {
     private GameWindow gameWindow;
     private int highScore;
+    private JPanel mainPanel;
+    private JLabel titleLabel;
+    private JLabel scoreLabel;
 
     public MainMenu() {
         setTitle("TETRIS - Menu Principal");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setUndecorated(true); // Sem bordas para fullscreen
 
+        // Registrar listener de tema
+        ThemeManager.addThemeChangeListener(this);
+
         // Carregar recorde
         highScore = ScoreRepository.getHighScore();
 
         // Painel principal com layout centralizado
-        JPanel mainPanel = new JPanel(new GridBagLayout());
-        mainPanel.setBackground(new Color(15, 15, 25));
+        mainPanel = new JPanel(new GridBagLayout());
+        updateThemeColors();
 
         // Container para conteúdo centralizado
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
-        contentPanel.setBackground(new Color(15, 15, 25));
         contentPanel.setOpaque(false);
 
         // Titulo
-        JLabel titleLabel = new JLabel("TETRIS");
+        titleLabel = new JLabel("TETRIS");
         titleLabel.setFont(new Font("Arial", Font.BOLD, 72));
-        titleLabel.setForeground(new Color(100, 149, 237));
+        titleLabel.setForeground(ThemeManager.getAccentColor());
         titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         // Espaçador
@@ -45,7 +50,7 @@ public class MainMenu extends JFrame {
         contentPanel.add(Box.createVerticalStrut(30));
 
         // Recorde
-        JLabel scoreLabel = new JLabel("Recorde: " + highScore);
+        scoreLabel = new JLabel("Recorde: " + highScore);
         scoreLabel.setFont(new Font("Arial", Font.PLAIN, 24));
         scoreLabel.setForeground(new Color(220, 220, 220));
         scoreLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -101,6 +106,9 @@ public class MainMenu extends JFrame {
 
         setVisible(true);
         mainPanel.requestFocus();
+
+        // Fade in suave
+        ScreenTransition.fadeIn(this);
     }
 
     private JButton createButton(String text) {
@@ -108,41 +116,59 @@ public class MainMenu extends JFrame {
         button.setMaximumSize(new Dimension(250, 50));
         button.setAlignmentX(Component.CENTER_ALIGNMENT);
         button.setFont(new Font("Arial", Font.BOLD, 20));
-        button.setBackground(new Color(100, 149, 237));
+        button.setBackground(ThemeManager.getAccentColor());
         button.setForeground(Color.WHITE);
         button.setBorderPainted(false);
         button.setFocusPainted(false);
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
+        Color accentColor = ThemeManager.getAccentColor();
         button.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
-                button.setBackground(new Color(120, 170, 255));
+                button.setBackground(accentColor.brighter());
             }
 
             @Override
             public void mouseExited(MouseEvent e) {
-                button.setBackground(new Color(100, 149, 237));
+                button.setBackground(accentColor);
             }
         });
 
         return button;
     }
 
-    private void startGame() {
-        // Sair do fullscreen do menu
-        GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
-        if (gd.getFullScreenWindow() == this) {
-            gd.setFullScreenWindow(null);
+    private void updateThemeColors() {
+        mainPanel.setBackground(ThemeManager.getBackgroundColor());
+        if (titleLabel != null) {
+            titleLabel.setForeground(ThemeManager.getAccentColor());
         }
+        mainPanel.revalidate();
+        mainPanel.repaint();
+    }
 
-        GameController controller = new GameController();
-        controller.startGame();
+    @Override
+    public void onThemeChanged() {
+        SwingUtilities.invokeLater(this::updateThemeColors);
+    }
 
-        gameWindow = new GameWindow(controller);
-        gameWindow.setVisible(true);
-        setVisible(false);
-        dispose();
+    private void startGame() {
+        ScreenTransition.fadeOut(this, () -> {
+            // Sair do fullscreen do menu
+            ThemeManager.removeThemeChangeListener(this);
+            GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
+            if (gd.getFullScreenWindow() == this) {
+                gd.setFullScreenWindow(null);
+            }
+
+            GameController controller = new GameController();
+            controller.startGame();
+
+            gameWindow = new GameWindow(controller);
+            gameWindow.setVisible(true);
+            setVisible(false);
+            dispose();
+        });
     }
 
     private void showInstructions() {
@@ -182,21 +208,18 @@ public class MainMenu extends JFrame {
     }
 
     private void showOptions() {
-        JPanel optionsPanel = new JPanel();
-        optionsPanel.setLayout(new BoxLayout(optionsPanel, BoxLayout.Y_AXIS));
+        ScreenTransition.fadeOut(this, () -> {
+            // Sair do fullscreen do menu
+            ThemeManager.removeThemeChangeListener(this);
+            GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
+            if (gd.getFullScreenWindow() == this) {
+                gd.setFullScreenWindow(null);
+            }
 
-        JCheckBox soundCheckBox = new JCheckBox("Som habilitado");
-        soundCheckBox.setSelected(true);
-
-        JLabel volumeLabel = new JLabel("Volume:");
-        JSlider volumeSlider = new JSlider(0, 100, 50);
-
-        optionsPanel.add(soundCheckBox);
-        optionsPanel.add(Box.createVerticalStrut(10));
-        optionsPanel.add(volumeLabel);
-        optionsPanel.add(volumeSlider);
-
-        JOptionPane.showMessageDialog(this, optionsPanel, "Opções", JOptionPane.PLAIN_MESSAGE);
+            setVisible(false);
+            dispose();
+            SwingUtilities.invokeLater(() -> new SettingsScreen());
+        });
     }
 
     public static void main(String[] args) {

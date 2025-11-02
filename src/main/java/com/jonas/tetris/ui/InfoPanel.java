@@ -1,29 +1,55 @@
 package com.jonas.tetris.ui;
 
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+
+import javax.swing.BorderFactory;
+import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
+
 import com.jonas.tetris.engine.GameState;
 import com.jonas.tetris.util.FontLoader;
-
-import javax.swing.*;
-import java.awt.*;
 
 /**
  * Painel lateral exibindo informações do jogo (score, level, próximas peças,
  * etc).
  */
-public class InfoPanel extends JPanel {
+public class InfoPanel extends JPanel implements ThemeManager.ThemeChangeListener {
     private static final int PANEL_WIDTH = 250;
     private static final int TILE_SIZE = 35;
 
-    private final Color bgColor = new Color(25, 25, 35);
+    private Color bgColor;
     private final Color textColor = new Color(220, 220, 220);
-    private final Color accentColor = new Color(100, 149, 237);
+    private Color accentColor;
 
     private GameState currentState;
 
     public InfoPanel() {
         setPreferredSize(new Dimension(PANEL_WIDTH, 20 * TILE_SIZE));
+        updateThemeColors();
+
+        // Registrar listener de tema
+        ThemeManager.addThemeChangeListener(this);
+    }
+
+    private void updateThemeColors() {
+        bgColor = ThemeManager.getBackgroundColor();
+        accentColor = ThemeManager.getAccentColor();
         setBackground(bgColor);
         setBorder(BorderFactory.createLineBorder(accentColor, 2));
+    }
+
+    @Override
+    public void onThemeChanged() {
+        SwingUtilities.invokeLater(() -> {
+            updateThemeColors();
+            repaint();
+        });
     }
 
     public void updateInfo(GameState state) {

@@ -1,21 +1,28 @@
 package com.jonas.tetris.ui;
 
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+
+import javax.swing.BorderFactory;
+import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
+
 import com.jonas.tetris.domain.Board;
 import com.jonas.tetris.domain.Tetromino;
 import com.jonas.tetris.engine.GameController;
 import com.jonas.tetris.engine.GameState;
-import com.jonas.tetris.util.FontLoader;
-
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 
 /**
  * Painel de renderização do jogo.
  * Desenha o tabuleiro, peças, e elementos visuais.
  */
-public class GamePanel extends JPanel {
+public class GamePanel extends JPanel implements ThemeManager.ThemeChangeListener {
     private static final int TILE_SIZE = 35;
     private GameState currentState;
     private final GameController controller;
@@ -25,8 +32,23 @@ public class GamePanel extends JPanel {
         setPreferredSize(new Dimension(
                 Board.BOARD_WIDTH * TILE_SIZE,
                 Board.BOARD_HEIGHT * TILE_SIZE));
-        setBackground(new Color(25, 25, 35));
-        setBorder(BorderFactory.createLineBorder(new Color(100, 149, 237), 2));
+        updateThemeColors();
+
+        // Registrar listener de tema
+        ThemeManager.addThemeChangeListener(this);
+    }
+
+    private void updateThemeColors() {
+        setBackground(ThemeManager.getBackgroundColor());
+        setBorder(BorderFactory.createLineBorder(ThemeManager.getAccentColor(), 2));
+    }
+
+    @Override
+    public void onThemeChanged() {
+        SwingUtilities.invokeLater(() -> {
+            updateThemeColors();
+            repaint();
+        });
     }
 
     public void updateState(GameState state) {
@@ -67,7 +89,7 @@ public class GamePanel extends JPanel {
     }
 
     private void drawGrid(Graphics2D g2d) {
-        g2d.setColor(new Color(50, 50, 60));
+        g2d.setColor(ThemeManager.getGridColor());
         g2d.setStroke(new BasicStroke(1));
 
         int width = Board.BOARD_WIDTH * TILE_SIZE;
